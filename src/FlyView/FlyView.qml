@@ -20,7 +20,6 @@ Item {
 
     readonly property bool _is3DMode: QGCViewer3DManager.displayMode === QGCViewer3DManager.View3D
 
-    // These should only be used by MainRootWindow
     property var planController:    _planController
     property var guidedController:  _guidedController
 
@@ -30,32 +29,16 @@ Item {
         Component.onCompleted:  start()
     }
 
-    property bool   _mainWindowIsMap:       mapControl.pipState.state === mapControl.pipState.fullState
-    property bool   _isFullWindowItemDark:  _mainWindowIsMap ? mapControl.isSatelliteMap : true
     property var    _activeVehicle:         QGroundControl.multiVehicleManager.activeVehicle
     property var    _missionController:     _planController.missionController
-    property var    _geoFenceController:    _planController.geoFenceController
-    property var    _rallyPointController:  _planController.rallyPointController
-    property real   _margins:               ScreenTools.defaultFontPixelWidth / 2
     property var    _guidedController:      guidedActionsController
     property var    _guidedValueSlider:     guidedValueSlider
     property var    _widgetLayer:           widgetLayer
-    property real   _toolsMargin:           ScreenTools.defaultFontPixelWidth * 0.75
-    property rect   _centerViewport:        Qt.rect(0, 0, width, height)
-    property real   _rightPanelWidth:       ScreenTools.defaultFontPixelWidth * 30
     property var    _mapControl:            mapControl
-    property real   _widgetMargin:          ScreenTools.defaultFontPixelWidth * 0.75
-
-    property real   _fullItemZorder:    0
-    property real   _pipItemZorder:     QGroundControl.zOrderWidgets
-
-    function _calcCenterViewPort() {
-        var newToolInset = Qt.rect(0, 0, width, height)
-        toolstrip.adjustToolInset(newToolInset)
-    }
+    property real   _fullItemZorder:         0
 
     function dropMainStatusIndicatorTool() {
-        toolbar.dropMainStatusIndicatorTool();
+        toolbar.dropMainStatusIndicatorTool()
     }
 
     QGCToolInsets {
@@ -63,59 +46,284 @@ Item {
         topEdgeLeftInset:       toolbar.height
         topEdgeCenterInset:     topEdgeLeftInset
         topEdgeRightInset:      topEdgeLeftInset
-        leftEdgeBottomInset:    _pipView.leftEdgeBottomInset
-        bottomEdgeLeftInset:    _pipView.bottomEdgeLeftInset
+        leftEdgeBottomInset:    0
+        bottomEdgeLeftInset:    0
     }
 
     Item {
         id:                 mapHolder
         anchors.fill:       parent
 
-        FlyViewMap {
-            id:                     mapControl
-            planMasterController:   _planController
-            rightPanelWidth:        ScreenTools.defaultFontPixelHeight * 9
-            pipView:                _pipView
-            pipMode:                !_mainWindowIsMap
-            toolInsets:             customOverlay.totalToolInsets
-            mapName:                "FlightDisplayView"
-            enabled:                !_is3DMode
-            visible:                !_is3DMode
+        property real topOffset: toolbar.height
+        property real leftRatio: 0.35
+        property real leftTopRatio: 0.55
+        property real rightTopRatio: 0.68
+
+            FlyViewMap {
+        id:                     mapControl
+        anchors.left:           parent.left
+        anchors.top:            parent.top
+        anchors.topMargin:      mapHolder.topOffset
+        width:                  parent.width * mapHolder.leftRatio
+        height:                 (parent.height - mapHolder.topOffset) * mapHolder.leftTopRatio
+
+        planMasterController:   _planController
+        rightPanelWidth:        ScreenTools.defaultFontPixelHeight * 9
+        pipView:                _pipView
+        pipMode:                false
+        toolInsets:             customOverlay.totalToolInsets
+        mapName:                "FlightDisplayView"
+
+        enabled:                !_is3DMode
+        visible:                !_is3DMode
+
+        Component.onCompleted: {
+            mapControl.zoomLevel = 0
         }
+    }
 
         FlyViewVideo {
-            id:         videoControl
-            pipView:    _pipView
+            id:             videoControl
+            anchors.left:   mapControl.right
+            anchors.top:    parent.top
+            anchors.topMargin: mapHolder.topOffset
+            width:          parent.width * (1 - mapHolder.leftRatio)
+            height:         (parent.height - mapHolder.topOffset) / 2
+            visible:        QGroundControl.videoManager.hasVideo
+            pipView:        _pipView
+        }
+
+        Rectangle {
+            id: hudPanel
+
+            x: parent.width * mapHolder.leftRatio
+            y: mapHolder.topOffset
+            width: parent.width * (1 - mapHolder.leftRatio)
+            height: (parent.height - mapHolder.topOffset) * mapHolder.rightTopRatio
+
+            z: 10
+            color: QGroundControl.videoManager.hasVideo ? "transparent" : "black"
+            border.color: "white"
+
+            QGCLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: 20
+                text: (_activeVehicle && _activeVehicle.armed) ? "ARMED" : "DISARMED"
+                color: (_activeVehicle && _activeVehicle.armed) ? "lime" : "red"
+                font.pointSize: 18
+            }
+
+            QGCLabel {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.leftMargin: 20
+                anchors.topMargin: 20
+                text: "SPD\n" + ((_activeVehicle && _activeVehicle.armed) ? _activeVehicle.groundSpeed.rawValue.toFixed(1) : "0.0")
+                color: "white"
+                font.pointSize: 14
+            }
+
+            QGCLabel {
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.rightMargin: 20
+                anchors.topMargin: 20
+                text: "ALT\n" + ((_activeVehicle && _activeVehicle.armed) ? _activeVehicle.altitudeRelative.rawValue.toFixed(1) : "0.0")
+                color: "white"
+                font.pointSize: 14
+            }
+
+            Item {
+                anchors.centerIn: parent
+                width: 80
+                height: 80
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 80
+                    height: 3
+                    color: "lime"
+                }
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 3
+                    height: 80
+                    color: "lime"
+                }
+            }
+
+            QGCLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 20
+                text: "GPS: " + (_activeVehicle ? "CONNECTED" : "NO GPS")
+                color: "white"
+                font.pointSize: 14
+            }
+        }
+
+        Rectangle {
+            id: telemetryPanel
+            anchors.left:       parent.left
+            anchors.bottom:     parent.bottom
+            width:              parent.width * mapHolder.leftRatio
+            height: (parent.height - mapHolder.topOffset) * (1 - mapHolder.leftTopRatio)
+            color:              "#202020"
+            border.color:       "white"
+
+            GridLayout {
+                anchors.fill:       parent
+                anchors.margins:    20
+                columns:            2
+                rowSpacing:         12
+                columnSpacing:      12
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "#111111"
+                    border.color: "#555555"
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        QGCLabel { text: "GND SPD"; color: "#00FF66"; font.pointSize: 11 }
+
+                        QGCLabel {
+                            text: (_activeVehicle ? _activeVehicle.groundSpeed.rawValue.toFixed(2) : "0.00") + " m/s"
+                            color: "white"
+                            font.pointSize: 16
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "#111111"
+                    border.color: "#555555"
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        QGCLabel { text: "AIR SPD"; color: "#33AAFF"; font.pointSize: 11 }
+
+                        QGCLabel {
+                            text: (_activeVehicle ? _activeVehicle.airSpeed.rawValue.toFixed(2) : "0.00") + " m/s"
+                            color: "white"
+                            font.pointSize: 16
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "#111111"
+                    border.color: "#555555"
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        QGCLabel { text: "ALTITUDE"; color: "#FF9933"; font.pointSize: 11 }
+
+                        QGCLabel {
+                            text: (_activeVehicle ? _activeVehicle.altitudeRelative.rawValue.toFixed(2) : "0.00") + " m"
+                            color: "white"
+                            font.pointSize: 16
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "#111111"
+                    border.color: "#555555"
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        QGCLabel { text: "BATTERY"; color: "#FFD700"; font.pointSize: 11 }
+
+                        QGCLabel {
+                            text: (_activeVehicle && _activeVehicle.batteries.count > 0
+                                   ? _activeVehicle.batteries.get(0).voltage.rawValue.toFixed(2)
+                                   : "0.00") + " V"
+                            color: "white"
+                            font.pointSize: 16
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            id: messagePanel
+            anchors.right:      parent.right
+            anchors.bottom:     parent.bottom
+            width:              parent.width * (1 - mapHolder.leftRatio)
+            height: (parent.height - mapHolder.topOffset) * (1 - mapHolder.rightTopRatio)
+            color:              "#303030"
+            border.color:       "white"
+
+            Column {
+                anchors.fill:       parent
+                anchors.margins:    12
+                spacing:            8
+
+                QGCLabel {
+                    text: "MESSAGES"
+                    color: "white"
+                    font.pointSize: 18
+                }
+
+                QGCLabel {
+                    text: _activeVehicle ? "Vehicle connected" : "System disconnected"
+                    color: "white"
+                    font.pointSize: 13
+                }
+
+                QGCLabel {
+                    text: _activeVehicle ? "Receiving telemetry..." : "Waiting for vehicle..."
+                    color: "white"
+                    font.pointSize: 13
+                }
+            }
         }
 
         PipView {
             id:                     _pipView
-            anchors.left:           parent.left
-            anchors.bottom:         parent.bottom
-            anchors.margins:        _toolsMargin
+            visible:                false
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
             item1:                  mapControl
-            item2:                  QGroundControl.videoManager.hasVideo ? videoControl : null
-            show:                   QGroundControl.videoManager.hasVideo && !QGroundControl.videoManager.fullScreen &&
-                                        (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
-            z:                      QGroundControl.zOrderWidgets
+            item2:                  null
 
-            property real leftEdgeBottomInset: visible ? width + anchors.margins : 0
-            property real bottomEdgeLeftInset: visible ? height + anchors.margins : 0
+            property real leftEdgeBottomInset: 0
+            property real bottomEdgeLeftInset: 0
         }
 
         FlyViewWidgetLayer {
-            id:                     widgetLayer
-            anchors.top:            parent.top
-            anchors.bottom:         parent.bottom
-            anchors.left:           parent.left
-            anchors.right:          guidedValueSlider.visible ? guidedValueSlider.left : parent.right
-            anchors.margins:        _widgetMargin
-            anchors.topMargin:      toolbar.height + _widgetMargin
-            z:                      _fullItemZorder + 2
-            parentToolInsets:       _toolInsets
-            mapControl:             _mapControl
-            visible:                !QGroundControl.videoManager.fullScreen
+            id:                 widgetLayer
+            anchors.fill:       parent
+            z:                  _fullItemZorder + 2
+            parentToolInsets:   _toolInsets
+            mapControl:         _mapControl
+            visible:            false
         }
 
         FlyViewCustomLayer {
@@ -124,28 +332,23 @@ Item {
             z:                  _fullItemZorder + 2
             parentToolInsets:   widgetLayer.totalToolInsets
             mapControl:         _mapControl
-            visible:            !QGroundControl.videoManager.fullScreen
+            visible:            false
         }
 
-        // Development tool for visualizing the insets for a paticular layer, show if needed
         FlyViewInsetViewer {
-            id:                     widgetLayerInsetViewer
-            anchors.top:            parent.top
-            anchors.bottom:         parent.bottom
-            anchors.left:           parent.left
-            anchors.right:          guidedValueSlider.visible ? guidedValueSlider.left : parent.right
-            z:                      widgetLayer.z + 1
-            insetsToView:           widgetLayer.totalToolInsets
-            visible:                false
+            id:             widgetLayerInsetViewer
+            anchors.fill:   parent
+            z:              widgetLayer.z + 1
+            insetsToView:   widgetLayer.totalToolInsets
+            visible:        false
         }
 
         GuidedActionsController {
             id:                 guidedActionsController
             missionController:  _missionController
-            guidedValueSlider:     _guidedValueSlider
+            guidedValueSlider:  _guidedValueSlider
         }
 
-        //-- Guided value slider (e.g. altitude)
         GuidedValueSlider {
             id:                 guidedValueSlider
             anchors.right:      parent.right
@@ -164,8 +367,7 @@ Item {
 
             onActiveChanged: {
                 if (active) {
-                    setSource("qrc:/qml/QGroundControl/Viewer3D/Models3D/Viewer3DModel.qml",
-)
+                    setSource("qrc:/qml/QGroundControl/Viewer3D/Models3D/Viewer3DModel.qml")
                 }
             }
         }

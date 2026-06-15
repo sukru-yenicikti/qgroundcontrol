@@ -16,9 +16,8 @@ FlightMap {
     allowGCSLocationCenter:     true
     allowVehicleLocationCenter: !_keepVehicleCentered
     planView:                   false
-    zoomLevel:                  QGroundControl.flightMapZoom
-    center:                     QGroundControl.flightMapPosition
-
+    zoomLevel: 0
+    center: QtPositioning.coordinate(20, 0)
     property Item   pipView
     property Item   pipState:                   _pipState
     property var    rightPanelWidth
@@ -47,7 +46,7 @@ FlightMap {
                 zoomLevel = QGroundControl.flightMapZoom - 3
             }
         } else {
-            zoomLevel = QGroundControl.flightMapZoom
+            zoomLevel = 1
         }
         _saveZoomLevelSetting = true
     }
@@ -63,7 +62,7 @@ FlightMap {
 
     onZoomLevelChanged: {
         if (_saveZoomLevelSetting) {
-            QGroundControl.flightMapZoom = _root.zoomLevel
+            //QGroundControl.flightMapZoom = _root.zoomLevel
         }
     }
     onCenterChanged: {
