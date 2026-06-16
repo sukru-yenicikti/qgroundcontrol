@@ -55,9 +55,9 @@ Item {
         anchors.fill:       parent
 
         property real topOffset: toolbar.height
-        property real leftRatio: 0.35
+        property real leftRatio: 0.45
         property real leftTopRatio: 0.55
-        property real rightTopRatio: 0.68
+        property real rightTopRatio: 0.58
 
             FlyViewMap {
         id:                     mapControl
@@ -88,7 +88,7 @@ Item {
             anchors.top:    parent.top
             anchors.topMargin: mapHolder.topOffset
             width:          parent.width * (1 - mapHolder.leftRatio)
-            height:         (parent.height - mapHolder.topOffset) / 2
+            height: (parent.height - mapHolder.topOffset) * mapHolder.rightTopRatio
             visible:        QGroundControl.videoManager.hasVideo
             pipView:        _pipView
         }
